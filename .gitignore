@@ -36,3 +36,4 @@ poetry.lock
 .env
 creds.sh
 
+misc.txt
