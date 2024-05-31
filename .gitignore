@@ -1,6 +1,6 @@
 # Byte-compiled / optimized / DLL files
 __pycache__/
-*.py[cod]
+*.py[cod]  # This will ignore .pyc, .pyo, and .pyd files but not .py files
 *$py.class
 
 # C extensions
@@ -23,8 +23,8 @@ build/
 # Poetry
 poetry.lock
 
-# VS Code
-.vscode/
+# VS Code settings (if you want to ignore the whole directory)
+# .vscode/
 
 # Jupyter Notebook
 .ipynb_checkpoints/
