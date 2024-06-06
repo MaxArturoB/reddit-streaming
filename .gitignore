@@ -28,6 +28,8 @@ poetry.lock
 
 # Jupyter Notebook
 .ipynb_checkpoints/
+reddit_streaming/Reddit_consumer.ipynb
+reddit_streaming/Reddit_producer.ipynb
 
 # PySpark
 .metastore_db/
