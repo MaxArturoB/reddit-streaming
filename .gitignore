@@ -39,3 +39,13 @@ reddit_streaming/Reddit_producer.ipynb
 creds.sh
 
 misc.txt
+
+# mios
+reddit_streaming/client.py
+reddit_streaming/comments.txt
+reddit_streaming/consumer.py
+reddit_streaming/data/
+reddit_streaming/data_gathering.ipynb
+reddit_streaming/live_comments_socket.py
+reddit_streaming/producerNotebook.ipynb
+reddit_streaming/data/json/*.json
