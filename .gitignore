@@ -46,6 +46,7 @@ reddit_streaming/comments.txt
 reddit_streaming/consumer.py
 reddit_streaming/data/metrics/
 reddit_streaming/data/processed/
+reddit_streaming/data/sentiment/
 reddit_streaming/data/raw/
 reddit_streaming/data/checkpoint/
 reddit_streaming/data/json_data
