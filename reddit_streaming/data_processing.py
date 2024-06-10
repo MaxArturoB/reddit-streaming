@@ -86,17 +86,19 @@ def start_streaming(host="localhost", port=9998):
         "data.*"
     )
     # Convert epoch time to timestamp
-    # json_df = json_df.withColumn("timestamp", from_unixtime(col("created_utc")))
-    json_df = json_df.withColumn(
+    json_df = json_df.withColumn("timestamp", from_unixtime(col("created_utc")))
+    """    json_df = json_df.withColumn(
         "timestamp", (col("created_utc") / 1).cast(TimestampType())
-    )
-    query = (
+    )"""
+
+    """    raw_query = (
         json_df.writeStream.outputMode("append")
         .format("parquet")
-        .option("path", "data/processed")
-        .option("checkpointLocation", "data/checkpoint")
+        .option("path", "data/raw")
+        .option("checkpointLocation", "data/checkpoint/raw")
+        .trigger(processingTime="5 seconds")
         .start()
-    )
+    )"""
 
     # Count occurrences in 60-second windows, updated every 5 seconds
     windowed_counts = json_df.groupBy(
@@ -111,13 +113,14 @@ def start_streaming(host="localhost", port=9998):
         "text",
     ).count()
 
-    query = (
+    """window_query = (
         windowed_counts.writeStream.outputMode("append")
         .format("parquet")
         .option("path", "data/metrics")
-        .option("checkpointLocation", "data/checkpoint")
+        .option("checkpointLocation", "data/checkpoint/metrics")
+        .trigger(processingTime="5 seconds")
         .start()
-    )
+    )"""
 
     # prepare into spark format
     documentAssembler = DocumentAssembler().setInputCol("text").setOutputCol("document")
@@ -227,11 +230,12 @@ def start_streaming(host="localhost", port=9998):
         avg("negative").alias("avg_negative"),
     )
 
-    query = (
-        windowed_sentiment_df.writeStream.outputMode("append")
+    sentiment_query = (
+        sentiment__df.writeStream.outputMode("append")
         .format("parquet")
         .option("path", "data/sentiment")
-        .option("checkpointLocation", "data/checkpoint")
+        .option("checkpointLocation", "data/checkpoint/sentiment")
+        .trigger(processingTime="5 seconds")
         .start()
     )
 
@@ -247,7 +251,9 @@ def start_streaming(host="localhost", port=9998):
         .start()
     )
     """
-    query.awaitTermination()
+    # raw_query.awaitTermination()
+    # window_query.awaitTermination()
+    sentiment_query.awaitTermination()
 
 
 if __name__ == "__main__":
