@@ -45,10 +45,11 @@ reddit_streaming/client.py
 reddit_streaming/comments.txt
 reddit_streaming/consumer.py
 reddit_streaming/data/metrics/
-reddit_streaming/data/processed/
 reddit_streaming/data/sentiment/
 reddit_streaming/data/raw/
-reddit_streaming/data/checkpoint/
+reddit_streaming/data/checkpoint/metrics/
+reddit_streaming/data/checkpoint/sentiment/
+reddit_streaming/data/checkpoint/raw/
 reddit_streaming/data/json_data
 reddit_streaming/data_gathering.ipynb
 reddit_streaming/live_comments_socket.py
