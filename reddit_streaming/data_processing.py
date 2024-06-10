@@ -20,12 +20,15 @@ from pyspark.sql.functions import (
     udf,
     avg,
     window,
+    to_timestamp,
+    from_unixtime,
 )
 from pyspark.streaming import StreamingContext
 from sparknlp.base import DocumentAssembler
 from sparknlp.annotator import Tokenizer
 from sparknlp.annotator import Normalizer
 from sparknlp.annotator import LemmatizerModel
+from pyspark.ml.feature import CountVectorizer
 from nltk.corpus import stopwords
 from sparknlp.annotator import StopWordsCleaner
 from sparknlp.annotator import PerceptronModel
@@ -33,6 +36,7 @@ from sparknlp.annotator import Chunker
 from sparknlp.base import Finisher
 from pyspark.ml import Pipeline
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
+from pyspark.mllib.feature import HashingTF, IDF
 
 analyzer = SentimentIntensityAnalyzer()
 
@@ -70,7 +74,7 @@ def start_streaming(host="localhost", port=9998):
         [
             StructField("id", StringType(), True),
             StructField("author", StringType(), True),
-            StructField("created_utc", LongType(), True),
+            StructField("created_utc", DoubleType(), True),
             StructField("score", IntegerType(), True),
             StructField("parent_id", StringType(), True),
             StructField("subreddit", StringType(), True),
@@ -82,10 +86,14 @@ def start_streaming(host="localhost", port=9998):
     json_df = lines_df.select(from_json(col("value"), schema).alias("data")).select(
         "data.*"
     )
+    # Convert epoch time to timestamp
+    json_df = json_df.withColumn("timestamp", from_unixtime(col("created_utc")))
+
     # Create a temporary view for raw data
     json_df.createOrReplaceTempView("raw")
     # Save raw data to disk
-
+    # query = json_df.writeStream.outputMode("update").format("console").start()
+    # query.awaitTermination()
     """
     query = json_df.writeStream \
         .format("json") \
@@ -98,7 +106,7 @@ def start_streaming(host="localhost", port=9998):
     """
     # Count occurrences in 60-second windows, updated every 5 seconds
     windowed_counts = json_df.groupBy(
-        window(col("created_utc"), "60 seconds", "5 seconds"),
+        window(col("timestamp"), "60 seconds", "5 seconds"),
         "id",
         "author",
         "created_utc",
@@ -107,10 +115,11 @@ def start_streaming(host="localhost", port=9998):
         "subreddit",
         "permalink",
         "text",
+        "timestamp",
     ).count()
 
-    query = windowed_counts.writeStream.outputMode("update").format("console").start()
-    query.awaitTermination()
+    # query = windowed_counts.writeStream.outputMode("update").format("console").start()
+    # query.awaitTermination()
 
     # prepare into spark format
     documentAssembler = DocumentAssembler().setInputCol("text").setOutputCol("document")
@@ -157,7 +166,6 @@ def start_streaming(host="localhost", port=9998):
     )
 
     finisher = Finisher().setInputCols(["no_stop_lemmatized", "ngrams"])
-
     pipeline = Pipeline().setStages(
         [
             documentAssembler,
@@ -174,21 +182,11 @@ def start_streaming(host="localhost", port=9998):
     processed_df = processed_df.withColumn(
         "processed_text", array_join(processed_df["finished_no_stop_lemmatized"], " ")
     )
-    from pyspark.sql.functions import concat
-
-    processed_review = processed_review.withColumn(
-        "final", concat(F.col("finished_unigrams"), F.col("finished_ngrams"))
+    processed_df = processed_df.filter(
+        processed_df.finished_no_stop_lemmatized.isNotNull()
     )
 
-    from pyspark.ml.feature import CountVectorizer
-
-    tfizer = CountVectorizer(
-        inputCol="finished_no_stop_lemmatized", outputCol="tf_features"
-    )
-    tf_model = tfizer.fit(processed_review)
-    tf_result = tf_model.transform(processed_review)
-
-    # Define UDF for sentiment analysis
+    # if processed_df.select('processed_text'):
     def get_sentiment(text):
         vs = analyzer.polarity_scores(text)
         return vs["compound"]
@@ -205,25 +203,33 @@ def start_streaming(host="localhost", port=9998):
 
     # Write average sentiment to console
     query = (
-        avg_sentiment_df.writeStream.outputMode("complete")
+        processed_df.writeStream.outputMode("complete")
         .format("console")
         .option("truncate", "false")
         .start()
     )
+    query.awaitTermination()
 
-    """    df = processed_review_df.withColumn(
-        "comments_sentiment",
-        analyzer.polarity_scores(processed_review_df["finished_no_stop_lemmatized"]),
-    )"""
-    # Print the lines received
-    # lines.pprint()
-    # processed_review.pprint()
-    # Start the computation
-    # spark.start()
-    """    query = (
-        processed_review_df.writeStream.outputMode("append").format("console").start()
+    """
+    tf = (
+        CountVectorizer(inputCol="finished_no_stop_lemmatized", outputCol="tf_features")
+        .fit(sentiment_udf)
+        .transform(sentiment_udf)
     )
 
+    hashingTF = HashingTF(
+        inputCol="finished_no_stop_lemmatized", outputCol="tf_features", numFeatures=20
+    ).transform(sentiment_udf)
+
+    tfIdf_df = (
+        IDF(inputCol="tf_features", outputCol="vectorised_features")
+        .fit(hashingTF)
+        .transform(hashingTF)
+    )
+    """
+    query = sentiment_df.writeStream.outputMode("append").format("console").start()
+
+    """
     query = (
         sentiment_df.writeStream.outputMode("append")
         .format("json")
