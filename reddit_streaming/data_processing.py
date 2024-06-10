@@ -91,31 +91,24 @@ def start_streaming(host="localhost", port=9998):
 
     # Create a temporary view for raw data
     json_df.createOrReplaceTempView("raw")
-    # Save raw data to disk
-    # query = json_df.writeStream.outputMode("update").format("console").start()
-    # query.awaitTermination()
-    """
-    query = json_df.writeStream \
-        .format("json") \
-        .option("path", "/path/to/save/raw_data") \
-        .option("checkpointLocation", "/path/to/checkpoint/raw_data") \
+
+    query = (
+        json_df.writeStream.format("json")
+        .option("path", "data/raw")
+        .option("checkpointLocation", "data/checkpoint")
         .start()
+    )
 
-
+    """
     query.awaitTermination()
     """
     # Count occurrences in 60-second windows, updated every 5 seconds
     windowed_counts = json_df.groupBy(
         window(col("timestamp"), "60 seconds", "5 seconds"),
-        "id",
         "author",
-        "created_utc",
-        "score",
-        "parent_id",
         "subreddit",
         "permalink",
         "text",
-        "timestamp",
     ).count()
 
     # query = windowed_counts.writeStream.outputMode("update").format("console").start()
@@ -165,7 +158,18 @@ def start_streaming(host="localhost", port=9998):
         .setRegexParsers(allowed_tags)
     )
 
-    finisher = Finisher().setInputCols(["no_stop_lemmatized", "ngrams"])
+    """ 
+        cv = CountVectorizer(inputCol="no_stop_lemmatized", outputCol="tf_features")
+        IDF()
+        .setInputCol("tf_features")
+        .setOutputCol("idf_features")
+        .setNumFeatures(1000)
+    )
+    """
+    finisher = Finisher().setInputCols(
+        ["no_stop_lemmatized", "normalized", "tokenized"]
+    )
+
     pipeline = Pipeline().setStages(
         [
             documentAssembler,
@@ -185,8 +189,88 @@ def start_streaming(host="localhost", port=9998):
     processed_df = processed_df.filter(
         processed_df.finished_no_stop_lemmatized.isNotNull()
     )
+    tf = (
+        CountVectorizer(inputCol="finished_no_stop_lemmatized", outputCol="tf_features")
+        .fit(processed_df)
+        .transform(processed_df)
+    )
 
-    # if processed_df.select('processed_text'):
+    tf_idf = (
+        IDF(inputCol="tf_features", outputCol="vectorised_features")
+        .fit(tf)
+        .transform(tf)
+    )
+
+    some = tf_idf.select("vectorised_features", "finished_no_stop_lemmatized")
+
+    """
+    # Assuming 'processed_df' is a static DataFrame for fitting models
+    # Fit the CountVectorizer model
+    tf = (
+        CountVectorizer(inputCol="finished_no_stop_lemmatized", outputCol="tf_features")
+        .fit(processed_df)
+        .transform(processed_df)
+    )
+    tf_idf = (
+        IDF(inputCol="tf_features", outputCol="vectorised_features")
+        .fit(tf)
+        .transform(tf)
+    )
+    tf_idf = (
+        IDF(inputCol="tf_features", outputCol="vectorised_features")
+        .fit(tf)
+        .transform(tf)
+    )
+
+
+    cv = CountVectorizer(
+        inputCol="finished_no_stop_lemmatized",
+        outputCol="tf_features",
+        vocabSize=1000,
+        minDF=5,
+    )
+    cv_model = cv.fit(processed_df)  # Note: In a real scenario, fit on a static DF
+
+    # Fit the IDF model
+    idf = IDF(inputCol="tf_features", outputCol="idf_features")
+    idf_model = idf.fit(
+        cv_model.transform(processed_df)
+    )  # Note: In a real scenario, fit on a static DF
+
+    # Apply CountVectorizer model to streaming data
+    tf_df = cv_model.transform(processed_df)
+
+    # Apply IDF model to streaming data
+    idf_df = idf_model.transform(tf_df)
+    """
+    """    # Calculate TF-IDF
+    tfidf_df = idf_df.select("id", "idf_features")
+
+    # Explode the TF-IDF features to get individual words
+    tfidf_exploded_df = tfidf_df.select("id", "idf_features").withColumn(
+        "word", explode(col("idf_features"))
+    )"""
+    query = some.writeStream.outputMode("update").format("console").start()
+
+    query.awaitTermination()
+    """
+    # Group by window and compute top 10 important words based on TF-IDF scores
+    top_words_df = (
+        tfidf_exploded_df.groupBy(window(json_df.timestamp, "60 seconds", "5 seconds"))
+        .agg(collect_list("word").alias("words"))
+        .withColumn("top_words", udf_extract_top_words("words"))
+        .select("window", "top_words")
+    )
+
+    # Group by window and compute top 10 important words based on TF-IDF scores
+    top_words_df = (
+        tfidf_exploded_df.groupBy(window(json_df.timestamp, "60 seconds", "5 seconds"))
+        .agg(collect_list("word").alias("words"))
+        .withColumn("top_words", udf_extract_top_words("words"))
+        .select("window", "top_words")
+    )
+    """
+
     def get_sentiment(text):
         vs = analyzer.polarity_scores(text)
         return vs["compound"]
@@ -202,6 +286,7 @@ def start_streaming(host="localhost", port=9998):
     avg_sentiment_df = sentiment_df.agg(avg("sentiment").alias("average_sentiment"))
 
     # Write average sentiment to console
+    """
     query = (
         processed_df.writeStream.outputMode("complete")
         .format("console")
@@ -209,7 +294,7 @@ def start_streaming(host="localhost", port=9998):
         .start()
     )
     query.awaitTermination()
-
+    """
     """
     tf = (
         CountVectorizer(inputCol="finished_no_stop_lemmatized", outputCol="tf_features")
@@ -238,7 +323,8 @@ def start_streaming(host="localhost", port=9998):
         .option("checkpointLocation", "data/checkpoint")
         .start()
     )
-        """
+    """
+
     # Wait for the computation to terminate
     query.awaitTermination()
 
