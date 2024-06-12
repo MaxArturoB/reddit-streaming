@@ -53,3 +53,6 @@ reddit_streaming/data_gathering.ipynb
 reddit_streaming/live_comments_socket.py
 reddit_streaming/producerNotebook.ipynb
 reddit_streaming/data/json/*.json
+
+*.DS_Store
+.DS_Store

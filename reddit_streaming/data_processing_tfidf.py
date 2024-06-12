@@ -1,5 +1,15 @@
 from pyspark.sql import SparkSession
 from pyspark.ml.feature import Tokenizer, CountVectorizer, IDF
+from pyspark.sql.types import (
+    StringType,
+    StructType,
+    StructField,
+    DoubleType,
+    TimestampType,
+    ArrayType,
+    DoubleType,
+)
+
 from pyspark.sql.window import Window as W
 from pyspark.ml import Pipeline
 import os
@@ -19,6 +29,11 @@ from pyspark.sql.functions import (
     row_number,
 )
 from pyspark.sql import Row
+from nltk.corpus import stopwords
+import nltk
+
+# Download NLTK stopwords if not already downloaded
+nltk.download("stopwords")
 
 
 def start_processing(input_dir="data/raw/*.parquet", output_dir="data/tfidf"):
@@ -28,11 +43,25 @@ def start_processing(input_dir="data/raw/*.parquet", output_dir="data/tfidf"):
         .master("local[*]")  # Use local[*] master
         .getOrCreate()
     )
+    # Broadcast stopwords
+    stop_words = stopwords.words("english")
+    broadcast_stopwords = spark.sparkContext.broadcast(stop_words)
+
+    # Define UDF to remove stop words
+    @udf(StringType())
+    def remove_stopwords(text):
+        list_of_words = [
+            word for word in text.split() if word not in broadcast_stopwords.value
+        ]
+        filtered_text = " ".join(list_of_words)
+        return filtered_text
 
     # Read all Parquet files
     df = spark.read.parquet(input_dir)
+    # Apply the UDF to remove stop words
+    df = df.withColumn("filtered_text", remove_stopwords(col("text")))
 
-    tokenizer = Tokenizer(inputCol="text", outputCol="words")
+    tokenizer = Tokenizer(inputCol="filtered_text", outputCol="words")
 
     # Apply CountVectorizer to get term frequency
     cv = CountVectorizer(
@@ -47,15 +76,15 @@ def start_processing(input_dir="data/raw/*.parquet", output_dir="data/tfidf"):
 
     # Apply windowing
     windowed_df = df.groupBy(window(col("timestamp"), "60 seconds", "5 seconds")).agg(
-        collect_list("text").alias("texts")
+        collect_list("filtered_text").alias("filtered_text")
     )
 
     def process_window(row):
         window_start, window_end = row["window"]["start"], row["window"]["end"]
-        texts = row["texts"]
+        texts = row["filtered_text"]
 
         # Create a DataFrame for the texts in the window
-        texts_df = spark.createDataFrame([(text,) for text in texts], ["text"])
+        texts_df = spark.createDataFrame([(text,) for text in texts], ["filtered_text"])
 
         # Fit the pipeline to the data
         model = pipeline.fit(texts_df)
