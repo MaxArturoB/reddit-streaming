@@ -1,5 +1,10 @@
 import subprocess
 import time
+# Group Members
+#    Ciaran Fox
+#    Arturo Butron
+#    John Omole
+#    Felix Agosto
 
 if __name__ == "__main__":
     # Start the data producer in a new terminal
