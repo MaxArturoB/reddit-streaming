@@ -92,6 +92,7 @@ while True:
     if not sentiment_data.empty:
         try:
             # Bar chart of sentiment scores
+            st.header('Average Sentiment Scores')
             sentiment_means = sentiment_data[['neutral', 'positive', 'negative']].mean()
             fig, ax = plt.subplots(figsize=(10, 5))
             sns.barplot(x=sentiment_means.index, y=sentiment_means.values, ax=ax)
@@ -101,6 +102,7 @@ while True:
             bar_chart_placeholder.pyplot(fig)
 
             # Time Series Visualization
+            st.header('Compound Score Over Time')
             grouped_data = sentiment_data.groupby('timestamp')['compound'].mean().reset_index()
             fig, ax = plt.subplots(figsize=(10, 5))
             ax.plot(grouped_data['timestamp'], grouped_data['compound'], marker='o', linestyle='-', markersize=2, label='Compound Score')
@@ -110,15 +112,16 @@ while True:
             ax.legend()
             time_series_placeholder.pyplot(fig)
 
-            # Word Cloud
+            # Word Cloud Visualization
             all_words = ' '.join([' '.join(text) for text in sentiment_data['finished_no_stop_lemmatized']])
-            word_cloud = WordCloud(width=800, height=400, background_color='black').generate(all_words)
+            word_cloud = WordCloud(width=800, height=400, background_color='white').generate(all_words)
             plt.figure(figsize=(10, 5))
             plt.imshow(word_cloud, interpolation='bilinear')
             plt.axis('off')
             word_cloud_placeholder.pyplot(plt)
 
             # Histogram of compound values
+            st.header('Histogram of Compound Scores')
             plt.figure(figsize=(10, 5))
             sns.histplot(sentiment_data['compound'], bins=30, kde=True)
             plt.title('Histogram of Compound Scores')
@@ -126,20 +129,14 @@ while True:
             plt.ylabel('Frequency')
             histogram_placeholder.pyplot(plt)
 
-            # Scatter plot of compound score vs score
-            #plt.figure(figsize=(10, 5))
-            #sns.scatterplot(x='score', y='compound', data=sentiment_data)
-            #plt.title('Scatter Plot of Compound Score vs Score')
-            #plt.xlabel('Score')
-            #plt.ylabel('Compound Score')
-            #scatter_plot_placeholder.pyplot(plt)
-
             # Load and display reference data
+            st.header('Reference Data')
             reference_data_path = "data/reference"
             reference_data = load_data_from_parquet(reference_data_path)
             reference_data_placeholder.write(reference_data)
 
             # Load and display TF-IDF data
+            st.header('TF-IDF Data')
             tfidf_data_path = "data/tfidf"
             tfidf_data = load_data_from_parquet(tfidf_data_path)
             tfidf_data_placeholder.write(tfidf_data)
