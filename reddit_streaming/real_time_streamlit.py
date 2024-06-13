@@ -7,6 +7,7 @@ import socket
 import json
 import time
 import threading
+import os
 
 # Initialize global DataFrames
 all_data = pd.DataFrame()
@@ -14,6 +15,7 @@ sentiment_data = pd.DataFrame()
 
 # Function to update data continuously
 def update_data():
+    print("Started updating data")
     global all_data, sentiment_data
 
     # Connect to the socket
@@ -35,8 +37,6 @@ def update_data():
             # Append the new data to the DataFrame
             new_data = pd.DataFrame([json_data])
             all_data = pd.concat([all_data, new_data], ignore_index=True)
-
-
 
             # Process sentiment data
             new_sentiment = {
@@ -134,7 +134,7 @@ while True:
             tfidf_data_placeholder.write(tfidf_data)
 
         except Exception as e:
-            st.error(f"Error updating charts: {e}")
+            st.error(f"Waiting for more data: {e}")
 
     # Add a short delay to avoid overwhelming the CPU
     time.sleep(1)
