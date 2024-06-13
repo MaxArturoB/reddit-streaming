@@ -37,8 +37,6 @@ def update_data():
             new_data = pd.DataFrame([json_data])
             all_data = pd.concat([all_data, new_data], ignore_index=True)
 
-
-
             # Process sentiment data
             new_sentiment = {
                 'id': json_data['id'],
@@ -74,9 +72,7 @@ bar_chart_placeholder = st.empty()
 time_series_placeholder = st.empty()
 word_cloud_placeholder = st.empty()
 histogram_placeholder = st.empty()
-scatter_plot_placeholder = st.empty()
 reference_data_placeholder = st.empty()
-tfidf_data_placeholder = st.empty()
 
 # Function to read Parquet files and concatenate them into a DataFrame
 def load_data_from_parquet(directory):
@@ -86,60 +82,55 @@ def load_data_from_parquet(directory):
             file_path = os.path.join(directory, file)
             df = pd.read_parquet(file_path)
             dataframes.append(df)
-    return pd.concat(dataframes)
+    return pd.concat(dataframes, ignore_index=True)
 
 while True:
     if not sentiment_data.empty:
         try:
-            # Bar chart of sentiment scores
-            st.header('Average Sentiment Scores')
-            sentiment_means = sentiment_data[['neutral', 'positive', 'negative']].mean()
-            fig, ax = plt.subplots(figsize=(10, 5))
-            sns.barplot(x=sentiment_means.index, y=sentiment_means.values, ax=ax)
-            ax.set_title('Average Sentiment Scores')
-            ax.set_xlabel('Sentiment')
-            ax.set_ylabel('Average Score')
-            bar_chart_placeholder.pyplot(fig)
+            with bar_chart_placeholder.container():
+                st.header('Average Sentiment Scores')
+                sentiment_means = sentiment_data[['neutral', 'positive', 'negative']].mean()
+                fig, ax = plt.subplots(figsize=(10, 5))
+                sns.barplot(x=sentiment_means.index, y=sentiment_means.values, ax=ax)
+                ax.set_title('Average Sentiment Scores')
+                ax.set_xlabel('Sentiment')
+                ax.set_ylabel('Average Score')
+                st.pyplot(fig)
 
-            # Time Series Visualization
-            st.header('Compound Score Over Time')
-            grouped_data = sentiment_data.groupby('timestamp')['compound'].mean().reset_index()
-            fig, ax = plt.subplots(figsize=(10, 5))
-            ax.plot(grouped_data['timestamp'], grouped_data['compound'], marker='o', linestyle='-', markersize=2, label='Compound Score')
-            ax.set_title('Compound Score Over Time')
-            ax.set_xlabel('Timestamp')
-            ax.set_ylabel('Compound Score')
-            ax.legend()
-            time_series_placeholder.pyplot(fig)
+            with time_series_placeholder.container():
+                st.header('Compound Score Over Time')
+                grouped_data = sentiment_data.groupby('timestamp')['compound'].mean().reset_index()
+                fig, ax = plt.subplots(figsize=(10, 5))
+                ax.plot(grouped_data['timestamp'], grouped_data['compound'], marker='o', linestyle='-', markersize=2, label='Compound Score')
+                ax.set_title('Compound Score Over Time')
+                ax.set_xlabel('Timestamp')
+                ax.set_ylabel('Compound Score')
+                ax.legend()
+                st.pyplot(fig)
 
-            # Word Cloud Visualization
-            all_words = ' '.join([' '.join(text) for text in sentiment_data['finished_no_stop_lemmatized']])
-            word_cloud = WordCloud(width=800, height=400, background_color='white').generate(all_words)
-            plt.figure(figsize=(10, 5))
-            plt.imshow(word_cloud, interpolation='bilinear')
-            plt.axis('off')
-            word_cloud_placeholder.pyplot(plt)
+            with word_cloud_placeholder.container():
+                st.header('Word Cloud')
+                all_words = ' '.join([' '.join(text) for text in sentiment_data['finished_no_stop_lemmatized']])
+                word_cloud = WordCloud(width=800, height=400, background_color='white').generate(all_words)
+                plt.figure(figsize=(10, 5))
+                plt.imshow(word_cloud, interpolation='bilinear')
+                plt.axis('off')
+                st.pyplot(plt)
 
-            # Histogram of compound values
-            st.header('Histogram of Compound Scores')
-            plt.figure(figsize=(10, 5))
-            sns.histplot(sentiment_data['compound'], bins=30, kde=True)
-            plt.title('Histogram of Compound Scores')
-            plt.xlabel('Compound Score')
-            plt.ylabel('Frequency')
-            histogram_placeholder.pyplot(plt)
+            with histogram_placeholder.container():
+                st.header('Histogram of Compound Scores')
+                plt.figure(figsize=(10, 5))
+                sns.histplot(sentiment_data['compound'], bins=30, kde=True)
+                plt.title('Histogram of Compound Scores')
+                plt.xlabel('Compound Score')
+                plt.ylabel('Frequency')
+                st.pyplot(plt)
 
-            # Load and display reference data
-            st.header('Reference Data')
-            reference_data_path = "data/reference"
-            reference_data = load_data_from_parquet(reference_data_path)
-            reference_data_placeholder.write(reference_data)
-
-            # Load and display TF-IDF data
-            st.header('TF-IDF Data')
-            tfidf_data_path = "data/tfidf"
-            tfidf_data = load_data_from_parquet(tfidf_data_path)
-            tfidf_data_placeholder.write(tfidf_data)
+            with reference_data_placeholder.container():
+                st.header('Reference Data')
+                reference_data_path = "data/reference"
+                reference_data = load_data_from_parquet(reference_data_path)
+                st.write(reference_data)
 
         except Exception as e:
             st.error(f"Error updating charts: {e}")
@@ -164,9 +155,6 @@ def start_subprocesses():
     st.write("Starting sentiment data processing...")
     subprocess.Popen(["python3", "data_processing_sentiment.py"])
     time.sleep(1)
-
-    st.write("Starting TF-IDF data processing...")
-    subprocess.Popen(["spark-submit", "data_processing_tfidf.py"])
 
 # Start subprocesses when the button is clicked
 if st.button('Start Data Collection and Processing'):
