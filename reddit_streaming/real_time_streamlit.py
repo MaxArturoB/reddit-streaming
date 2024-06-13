@@ -15,7 +15,6 @@ sentiment_data = pd.DataFrame()
 
 # Function to update data continuously
 def update_data():
-    print("Started updating data")
     global all_data, sentiment_data
 
     # Connect to the socket
@@ -37,6 +36,8 @@ def update_data():
             # Append the new data to the DataFrame
             new_data = pd.DataFrame([json_data])
             all_data = pd.concat([all_data, new_data], ignore_index=True)
+
+
 
             # Process sentiment data
             new_sentiment = {
@@ -77,6 +78,16 @@ scatter_plot_placeholder = st.empty()
 reference_data_placeholder = st.empty()
 tfidf_data_placeholder = st.empty()
 
+# Function to read Parquet files and concatenate them into a DataFrame
+def load_data_from_parquet(directory):
+    dataframes = []
+    for file in os.listdir(directory):
+        if file.endswith('.parquet'):
+            file_path = os.path.join(directory, file)
+            df = pd.read_parquet(file_path)
+            dataframes.append(df)
+    return pd.concat(dataframes)
+
 while True:
     if not sentiment_data.empty:
         try:
@@ -116,12 +127,12 @@ while True:
             histogram_placeholder.pyplot(plt)
 
             # Scatter plot of compound score vs score
-            plt.figure(figsize=(10, 5))
-            sns.scatterplot(x='score', y='compound', data=sentiment_data)
-            plt.title('Scatter Plot of Compound Score vs Score')
-            plt.xlabel('Score')
-            plt.ylabel('Compound Score')
-            scatter_plot_placeholder.pyplot(plt)
+            #plt.figure(figsize=(10, 5))
+            #sns.scatterplot(x='score', y='compound', data=sentiment_data)
+            #plt.title('Scatter Plot of Compound Score vs Score')
+            #plt.xlabel('Score')
+            #plt.ylabel('Compound Score')
+            #scatter_plot_placeholder.pyplot(plt)
 
             # Load and display reference data
             reference_data_path = "data/reference"
@@ -134,16 +145,10 @@ while True:
             tfidf_data_placeholder.write(tfidf_data)
 
         except Exception as e:
-            st.error(f"Waiting for more data: {e}")
+            st.error(f"Error updating charts: {e}")
 
     # Add a short delay to avoid overwhelming the CPU
     time.sleep(1)
-
-# Function to read Parquet files and concatenate them into a DataFrame
-def load_data_from_parquet(path):
-    files = glob.glob(path + "/*.parquet")
-    df_list = [pd.read_parquet(file) for file in files]
-    return pd.concat(df_list, ignore_index=True)
 
 # Function to start subprocesses
 def start_subprocesses():
