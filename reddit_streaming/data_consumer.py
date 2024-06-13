@@ -16,7 +16,7 @@ from pyspark.sql.functions import (
 
 
 def start_streaming(host="localhost", port=9998):
-
+    # Create a Spark session with the necessary configurations
     spark = (
         SparkSession.builder.appName("reddit streaming app")
         .master("local[*]")
@@ -29,14 +29,14 @@ def start_streaming(host="localhost", port=9998):
     )
 
     # spark = SparkSession.builder.appName("reddit streaming").getOrCreate()
-
+    # Read data from the specified socket
     lines_df = (
         spark.readStream.format("socket")
         .option("host", host)
         .option("port", port)
         .load()
     )
-
+    # Define the schema for the JSON data
     schema = StructType(
         [
             StructField("id", StringType(), True),
@@ -49,13 +49,15 @@ def start_streaming(host="localhost", port=9998):
             StructField("text", StringType(), True),
         ]
     )
-
+    # Parse the JSON data and extract the relevant fields
     json_df = lines_df.select(from_json(col("value"), schema).alias("data")).select(
         "data.*"
     )
 
+    # Convert the created_utc field to a timestamp
     json_df = json_df.withColumn("timestamp", from_unixtime(col("created_utc")))
 
+    # Write the processed data to a Parquet file
     raw_query = (
         json_df.writeStream.outputMode("append")
         .format("parquet")
@@ -65,7 +67,7 @@ def start_streaming(host="localhost", port=9998):
         .start()
         .awaitTermination()
     )
-
+    # Keep the streaming job running
     spark.streams.awaitAnyTermination()
 
 

@@ -67,3 +67,7 @@ For real-time visualizations, run streamlit_app.py after starting the data colle
 This README provides a clear guide on how to run the scripts individually or through the main.py script for switching between producer and consumer modes. Make sure to adjust the paths according to your project directory structure.
 
 Replace /path/to/reddit_streaming with the actual path to your project directory before copying this content into your README file.
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
